@@ -111,7 +111,7 @@ function startChat() {
   if (!claudeKey || !elevenKey || !voiceId) { showToast('请填写所有字段哦～'); return; }
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('chat-screen').style.display = 'flex';
-  addMessage('ai', '你好呀～我在这里 🥹 有什么想聊的吗？', true);
+  addMessage('ai', '你好呀～我在这里 🥹 有什么想聊的吗？', false);
 }
 
 function handleKey(e) {
@@ -154,7 +154,7 @@ async function sendMessage() {
     if (data.error) throw new Error(data.error.message);
     const reply = data.content[0].text;
     conversationHistory.push({ role: 'assistant', content: reply });
-    addMessage('ai', reply, true);
+    addMessage('ai', reply, false);
   } catch (err) {
     removeTyping(typingId);
     showToast('Claude出错：' + err.message);
@@ -200,7 +200,6 @@ async function generateAudio(text, container) {
     audio.src = dataUrl;
     audioWrapper.appendChild(audio);
     container.appendChild(audioWrapper);
-    try { await audio.play(); } catch(e) {}
     const orb = document.getElementById('header-orb');
     const statusText = document.getElementById('status-text');
     audio.onplay = () => { orb.classList.add('speaking'); statusText.textContent = '正在说话…'; };
@@ -209,7 +208,7 @@ async function generateAudio(text, container) {
     loadingEl.remove();
     const errEl = document.createElement('button');
     errEl.className = 'play-btn';
-    errEl.textContent = '▷ 点击重试';
+    errEl.textContent = '▷ 点击生成语音';
     errEl.onclick = () => { errEl.remove(); generateAudio(text, container); };
     container.appendChild(errEl);
     showToast('语音失败：' + err.message);
@@ -224,10 +223,18 @@ function addMessage(role, text, withAudio) {
   bubble.className = 'bubble';
   bubble.textContent = text;
   msgEl.appendChild(bubble);
-  if (withAudio && role === 'ai') {
+  if (role === 'ai') {
     const audioContainer = document.createElement('div');
     msgEl.appendChild(audioContainer);
-    generateAudio(text, audioContainer);
+    // 添加一个"🔊 朗读"按钮，点一下才生成声音
+    const speakBtn = document.createElement('button');
+    speakBtn.className = 'play-btn';
+    speakBtn.textContent = '🔊 朗读';
+    speakBtn.onclick = () => {
+      speakBtn.remove();
+      generateAudio(text, audioContainer);
+    };
+    audioContainer.appendChild(speakBtn);
   }
   container.appendChild(msgEl);
   container.scrollTop = container.scrollHeight;
