@@ -2,8 +2,9 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>和我说话 ✦</title>
+<link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" href="icon.png">
 <style>
@@ -106,14 +107,53 @@
 let zhipuKey = '', elevenKey = '', voiceId = '';
 let conversationHistory = [];
 
+// 从 localStorage 恢复对话记录
+function loadHistory() {
+  const saved = localStorage.getItem('chatHistory');
+  if (saved) {
+    try {
+      conversationHistory = JSON.parse(saved);
+      // 只恢复最近20条
+      if (conversationHistory.length > 20) {
+        conversationHistory = conversationHistory.slice(-20);
+      }
+    } catch (e) {}
+  }
+}
+
+// 保存对话记录到 localStorage
+function saveHistory() {
+  try {
+    localStorage.setItem('chatHistory', JSON.stringify(conversationHistory));
+  } catch (e) {}
+}
+
 function startChat() {
   zhipuKey = document.getElementById('zhipu-key').value.trim();
   elevenKey = document.getElementById('eleven-key').value.trim();
   voiceId = document.getElementById('voice-id').value.trim();
   if (!zhipuKey || !elevenKey || !voiceId) { showToast('请填写所有字段哦～'); return; }
+  // 保存 API Key 到 localStorage（方便下次打开不用重填）
+  localStorage.setItem('zhipuKey', zhipuKey);
+  localStorage.setItem('elevenKey', elevenKey);
+  localStorage.setItem('voiceId', voiceId);
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('chat-screen').style.display = 'flex';
-  addMessage('ai', '你好呀～我在这里 🥹 有什么想聊的吗？');
+  loadHistory();
+  // 如果有历史记录，显示最近的几条
+  if (conversationHistory.length > 0) {
+    const container = document.getElementById('messages');
+    container.innerHTML = '';
+    // 只显示最近10条
+    const recent = conversationHistory.slice(-10);
+    recent.forEach(msg => {
+      const role = msg.role === 'user' ? 'user' : 'ai';
+      addMessage(role, msg.content, false);
+    });
+    container.scrollTop = container.scrollHeight;
+  } else {
+    addMessage('ai', '你好呀～我在这里 🥹 有什么想聊的吗？', false);
+  }
 }
 
 function handleKey(e) {
@@ -132,8 +172,9 @@ async function sendMessage() {
   input.value = '';
   input.style.height = 'auto';
   document.getElementById('send-btn').disabled = true;
-  addMessage('user', text);
+  addMessage('user', text, true);
   conversationHistory.push({ role: 'user', content: text });
+  saveHistory();
   const typingId = showTyping();
   try {
     const messages = [
@@ -165,7 +206,8 @@ async function sendMessage() {
     if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
     const reply = data.choices[0].message.content;
     conversationHistory.push({ role: 'assistant', content: reply });
-    addMessage('ai', reply);
+    saveHistory();
+    addMessage('ai', reply, true);
   } catch (err) {
     removeTyping(typingId);
     showToast('智谱AI出错：' + err.message);
@@ -223,7 +265,7 @@ async function generateAudio(text, container, btnElement) {
   }
 }
 
-function addMessage(role, text) {
+function addMessage(role, text, save = true) {
   const container = document.getElementById('messages');
   const msgEl = document.createElement('div');
   msgEl.className = `message ${role}`;
@@ -268,6 +310,23 @@ function showToast(msg) {
   toast.textContent = msg;
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 5000);
+}
+
+// 页面加载时自动填充之前保存的 Key
+window.onload = function() {
+  const savedKey = localStorage.getItem('zhipuKey');
+  const savedEleven = localStorage.getItem('elevenKey');
+  const savedVoice = localStorage.getItem('voiceId');
+  if (savedKey) document.getElementById('zhipu-key').value = savedKey;
+  if (savedEleven) document.getElementById('eleven-key').value = savedEleven;
+  if (savedVoice) document.getElementById('voice-id').value = savedVoice;
+};
+
+// 注册 Service Worker（让页面离线可用）
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js')
+    .then(() => console.log('Service Worker 注册成功 ✅'))
+    .catch(() => console.log('Service Worker 注册失败 ❌'));
 }
 </script>
 </body>
