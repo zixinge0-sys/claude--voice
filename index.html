@@ -70,8 +70,8 @@
   </div>
   <div class="form-group">
     <div class="field">
-      <label>Gemini API Key</label>
-      <input type="password" id="gemini-key" placeholder="AI..." />
+      <label>智谱AI API Key</label>
+      <input type="password" id="zhipu-key" placeholder="xxxxx.xxxxxx" />
     </div>
     <div class="field">
       <label>ElevenLabs API Key</label>
@@ -88,7 +88,7 @@
   <div class="chat-header">
     <div class="header-orb" id="header-orb"></div>
     <div class="header-info">
-      <h2>Gemini</h2>
+      <h2>智谱AI</h2>
       <p id="status-text">在线 · 随时都在</p>
     </div>
   </div>
@@ -101,14 +101,14 @@
   </div>
 </div>
 <script>
-let geminiKey = '', elevenKey = '', voiceId = '';
+let zhipuKey = '', elevenKey = '', voiceId = '';
 let conversationHistory = [];
 
 function startChat() {
-  geminiKey = document.getElementById('gemini-key').value.trim();
+  zhipuKey = document.getElementById('zhipu-key').value.trim();
   elevenKey = document.getElementById('eleven-key').value.trim();
   voiceId = document.getElementById('voice-id').value.trim();
-  if (!geminiKey || !elevenKey || !voiceId) { showToast('请填写所有字段哦～'); return; }
+  if (!zhipuKey || !elevenKey || !voiceId) { showToast('请填写所有字段哦～'); return; }
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('chat-screen').style.display = 'flex';
   addMessage('ai', '你好呀～我在这里 🥹 有什么想聊的吗？');
@@ -134,36 +134,32 @@ async function sendMessage() {
   conversationHistory.push({ role: 'user', content: text });
   const typingId = showTyping();
   try {
-    // 将 conversationHistory 转换为 Gemini 需要的格式
-    const geminiContents = conversationHistory.map(msg => ({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.content }]
-    }));
-    
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + geminiKey, {
+    // 调用智谱AI API (GLM-4-Flash，免费模型)
+    const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${zhipuKey}`
       },
       body: JSON.stringify({
-        contents: geminiContents,
-        systemInstruction: {
-          parts: [{ text: '你是Gemini，一个温柔、聪明、有温度的AI助手。用中文回复，语气自然亲切，像朋友聊天一样。回复简洁，不要太长，控制在100字以内。' }]
-        },
-        generationConfig: {
-          maxOutputTokens: 1000
-        }
+        model: 'glm-4-flash',
+        messages: conversationHistory.map(msg => ({
+          role: msg.role === 'assistant' ? 'assistant' : 'user',
+          content: msg.content
+        })),
+        max_tokens: 1000,
+        temperature: 0.8
       })
     });
     const data = await response.json();
     removeTyping(typingId);
-    if (data.error) throw new Error(data.error.message);
-    const reply = data.candidates[0].content.parts[0].text;
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    const reply = data.choices[0].message.content;
     conversationHistory.push({ role: 'assistant', content: reply });
     addMessage('ai', reply);
   } catch (err) {
     removeTyping(typingId);
-    showToast('Gemini出错：' + err.message);
+    showToast('智谱AI出错：' + err.message);
   }
   document.getElementById('send-btn').disabled = false;
 }
