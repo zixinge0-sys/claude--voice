@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="和我说话">
+<title>和我说话 ✦</title>
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400&family=Noto+Sans+SC:wght@300;400&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #0e0e12; --surface: #16161c;
+    --accent: #c8a4d4; --text: #e8e4f0;
+    --text-dim: #7a7490; --user-bubble: #1e1e2e; --ai-bubble: #181820;
+    --border: #2a2a38;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans SC', sans-serif; font-weight: 300; height: 100vh; height: -webkit-fill-available; display: flex; flex-direction: column; align-items: center; overflow: hidden; }
+
+  /* Setup */
+  #setup-screen { width: 100%; max-width: 480px; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; gap: 28px; overflow-y: auto; }
+  .title-block { text-align: center; }
+  .title-block h1 { font-family: 'Noto Serif SC', serif; font-size: 26px; font-weight: 300; letter-spacing: 0.08em; color: var(--accent); margin-bottom: 8px; }
+  .title-block p { font-size: 13px; color: var(--text-dim); line-height: 1.8; }
+  .orb { width: 70px; height: 70px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #d4b8e0, #7a6b9e 60%, #2a2040); box-shadow: 0 0 40px rgba(200,164,212,0.3); animation: breathe 4s ease-in-out infinite; }
+  @keyframes breathe { 0%,100%{transform:scale(1);box-shadow:0 0 40px rgba(200,164,212,0.3)} 50%{transform:scale(1.06);box-shadow:0 0 60px rgba(200,164,212,0.5)} }
+  .form-group { width: 100%; display: flex; flex-direction: column; gap: 14px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 11px; letter-spacing: 0.12em; color: var(--text-dim); text-transform: uppercase; }
+  .field input { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; color: var(--text); font-family: monospace; font-size: 16px; outline: none; transition: border-color 0.2s; width: 100%; }
+  .field input:focus { border-color: var(--accent); }
+  .field input::placeholder { color: var(--text-dim); opacity: 0.5; }
+  .start-btn { width: 100%; padding: 14px; background: linear-gradient(135deg, #c8a4d4, #8eb8e5); border: none; border-radius: 12px; color: #0e0e12; font-family: 'Noto Sans SC', sans-serif; font-size: 14px; font-weight: 400; letter-spacing: 0.06em; cursor: pointer; }
+  .logout-btn { background: none; border: none; color: var(--text-dim); font-size: 11px; cursor: pointer; text-decoration: underline; }
+
+  /* Chat */
+  #chat-screen { display: none; width: 100%; max-width: 480px; height: 100%; flex-direction: column; }
+  .chat-header { padding: 10px 16px; padding-top: max(10px, env(safe-area-inset-top)); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; background: var(--bg); flex-shrink: 0; }
+  .header-avatar { width: 36px; height: 36px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #d4b8e0, #7a6b9e 60%, #2a2040); box-shadow: 0 0 16px rgba(200,164,212,0.4); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; animation: breathe 4s ease-in-out infinite; overflow: hidden; }
+  .header-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  .header-avatar.speaking { animation: pulse-speak 0.6s ease-in-out infinite; }
+  @keyframes pulse-speak { 0%,100%{transform:scale(1);box-shadow:0 0 16px rgba(200,164,212,0.4)} 50%{transform:scale(1.15);box-shadow:0 0 30px rgba(200,164,212,0.8)} }
+  .header-info { flex: 1; }
+  .header-info h2 { font-family: 'Noto Serif SC', serif; font-size: 15px; font-weight: 300; color: var(--accent); }
+  .header-info p { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+  .header-settings { background: none; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; padding: 4px; }
+
+  .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; -webkit-overflow-scrolling: touch; }
+  .messages::-webkit-scrollbar { display: none; }
+
+  /* Message row with avatar */
+  .message-row { display: flex; align-items: flex-end; gap: 8px; animation: fade-up 0.25s ease; }
+  .message-row.user { flex-direction: row-reverse; }
+  .message-row.ai { flex-direction: row; }
+  @keyframes fade-up { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+
+  .msg-avatar { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; overflow: hidden; }
+  .msg-avatar.ai-av { background: radial-gradient(circle at 35% 35%, #d4b8e0, #7a6b9e 60%, #2a2040); }
+  .msg-avatar.user-av { background: linear-gradient(135deg, #2a2040, #1e1e2e); border: 1px solid var(--border); }
+  .msg-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+
+  .message { display: flex; flex-direction: column; max-width: 82%; gap: 4px; }
+  .message.user { align-items: flex-end; }
+  .message.ai { align-items: flex-start; }
+
+  .msg-name { font-size: 10px; color: var(--text-dim); padding: 0 4px; }
+  .bubble { padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.7; }
+  .message.user .bubble { background: var(--user-bubble); border: 1px solid var(--border); border-bottom-right-radius: 4px; }
+  .message.ai .bubble { background: var(--ai-bubble); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .bubble img { max-width: 100%; border-radius: 8px; margin-top: 4px; display: block; }
+
+  /* Timestamp */
+  .timestamp { font-size: 10px; color: var(--text-dim); text-align: center; margin: 4px 0; opacity: 0.6; }
+
+  /* Audio bar */
+  .audio-bar { display: flex; align-items: center; gap: 8px; background: var(--ai-bubble); border: 1px solid var(--border); border-radius: 20px; padding: 8px 14px; min-width: 180px; max-width: 240px; margin-top: 4px; }
+  .audio-play-btn { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #c8a4d4, #8eb8e5); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .audio-play-btn svg { width: 11px; height: 11px; fill: #0e0e12; }
+  .audio-waveform { flex: 1; height: 18px; display: flex; align-items: center; gap: 2px; }
+  .wave-bar { width: 3px; border-radius: 2px; background: var(--accent); opacity: 0.5; transition: all 0.3s; }
+  .wave-bar:nth-child(1){height:5px} .wave-bar:nth-child(2){height:11px} .wave-bar:nth-child(3){height:16px}
+  .wave-bar:nth-child(4){height:9px} .wave-bar:nth-child(5){height:13px} .wave-bar:nth-child(6){height:7px}
+  .wave-bar:nth-child(7){height:15px} .wave-bar:nth-child(8){height:5px}
+  .audio-bar.playing .wave-bar { animation: wave 0.8s ease-in-out infinite; opacity: 1; }
+  .audio-bar.playing .wave-bar:nth-child(1){animation-delay:0s} .audio-bar.playing .wave-bar:nth-child(2){animation-delay:0.1s}
+  .audio-bar.playing .wave-bar:nth-child(3){animation-delay:0.2s} .audio-bar.playing .wave-bar:nth-child(4){animation-delay:0.3s}
+  .audio-bar.playing .wave-bar:nth-child(5){animation-delay:0.4s} .audio-bar.playing .wave-bar:nth-child(6){animation-delay:0.5s}
+  .audio-bar.playing .wave-bar:nth-child(7){animation-delay:0.15s} .audio-bar.playing .wave-bar:nth-child(8){animation-delay:0.35s}
+  @keyframes wave { 0%,100%{transform:scaleY(0.4);opacity:0.4} 50%{transform:scaleY(1.3);opacity:1} }
+  .audio-duration { font-size: 11px; color: var(--text-dim); flex-shrink: 0; min-width: 28px; }
+
+  .voice-btn { background: rgba(200,164,212,0.1); border: none; color: var(--accent); font-size: 11px; cursor: pointer; padding: 4px 10px; border-radius: 12px; margin-top: 4px; }
+  .loading-voice { font-size: 11px; color: var(--text-dim); animation: pulse 1.5s ease-in-out infinite; margin-top: 4px; }
+  @keyframes pulse { 0%,100%{opacity:0.4} 50%{opacity:1} }
+
+  .typing-indicator { display: flex; gap: 5px; padding: 10px 14px; background: var(--ai-bubble); border: 1px solid var(--border); border-radius: 16px; border-bottom-left-radius: 4px; width: fit-content; }
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); animation: bounce 1.2s ease-in-out infinite; opacity: 0.6; }
+  .dot:nth-child(2){animation-delay:0.2s} .dot:nth-child(3){animation-delay:0.4s}
+  @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
+
+  /* Input */
+  .input-area { padding: 10px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom)); border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: flex-end; background: var(--bg); flex-shrink: 0; }
+  .img-btn { width: 38px; height: 38px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--text-dim); font-size: 16px; }
+  #message-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 10px 14px; color: var(--text); font-family: 'Noto Sans SC', sans-serif; font-size: 16px; font-weight: 300; resize: none; outline: none; line-height: 1.5; max-height: 100px; transition: border-color 0.2s; }
+  #message-input:focus { border-color: var(--accent); }
+  #message-input::placeholder { color: var(--text-dim); opacity: 0.5; }
+  .send-btn { width: 38px; height: 38px; border-radius: 12px; background: linear-gradient(135deg, #c8a4d4, #8eb8e5); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .send-btn:disabled { opacity: 0.4; }
+  .send-btn svg { width: 15px; height: 15px; fill: #0e0e12; }
+
+  #img-preview-bar { display: none; padding: 8px 12px; background: var(--surface); border-top: 1px solid var(--border); align-items: center; gap: 10px; flex-shrink: 0; }
+  #img-preview-bar img { height: 44px; width: 44px; object-fit: cover; border-radius: 8px; }
+  #img-preview-bar button { background: none; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; }
+  #img-input { display: none; }
+
+  /* Settings modal */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 50; align-items: center; justify-content: center; }
+  .modal-bg.show { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 24px; width: 88%; max-width: 340px; display: flex; flex-direction: column; gap: 16px; }
+  .modal h3 { font-family: 'Noto Serif SC', serif; font-size: 16px; font-weight: 300; color: var(--accent); }
+  .modal-field { display: flex; flex-direction: column; gap: 6px; }
+  .modal-field label { font-size: 11px; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase; }
+  .modal-field input { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 16px; outline: none; }
+  .modal-field input:focus { border-color: var(--accent); }
+  .modal-avatar-row { display: flex; align-items: center; gap: 12px; }
+  .modal-avatar-preview { width: 44px; height: 44px; border-radius: 50%; background: var(--bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 20px; overflow: hidden; flex-shrink: 0; }
+  .modal-avatar-preview img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  .upload-av-btn { background: rgba(200,164,212,0.1); border: none; color: var(--accent); font-size: 12px; cursor: pointer; padding: 6px 12px; border-radius: 10px; }
+  .modal-btns { display: flex; gap: 10px; }
+  .modal-save { flex: 1; padding: 12px; background: linear-gradient(135deg, #c8a4d4, #8eb8e5); border: none; border-radius: 10px; color: #0e0e12; font-size: 13px; cursor: pointer; }
+  .modal-cancel { flex: 1; padding: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text-dim); font-size: 13px; cursor: pointer; }
+  .modal-danger { padding: 10px; background: none; border: 1px solid #6b2a2a; border-radius: 10px; color: #f0a0a0; font-size: 12px; cursor: pointer; }
+
+  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); padding: 10px 18px; border-radius: 10px; font-size: 12px; z-index: 100; max-width: 90vw; text-align: center; word-break: break-all; background: #3a1a1a; border: 1px solid #6b2a2a; color: #f0a0a0; }
+</style>
+</head>
+<body>
+
+<!-- Setup -->
+<div id="setup-screen">
+  <div class="orb"></div>
+  <div class="title-block">
+    <h1>你好，我在这里</h1>
+    <p>填入你的 API Key<br>就可以听到我的声音了</p>
+  </div>
+  <div class="form-group">
+    <div class="field">
+      <label>智谱AI API Key</label>
+      <input type="password" id="zhipu-key" placeholder="xxxxx.xxxxxx" />
+    </div>
+    <div class="field">
+      <label>ElevenLabs API Key</label>
+      <input type="password" id="eleven-key" placeholder="sk_..." />
+    </div>
+    <div class="field">
+      <label>音色 ID（Voice ID）</label>
+      <input type="text" id="voice-id" placeholder="粘贴你生成的音色ID" />
+    </div>
+    <button class="start-btn" onclick="startChat()">开始对话 ✦</button>
+    <button class="logout-btn" onclick="clearAll()">清除所有数据</button>
+  </div>
+</div>
+
+<!-- Chat -->
+<div id="chat-screen">
+  <div class="chat-header">
+    <div class="header-avatar" id="header-avatar">✦</div>
+    <div class="header-info">
+      <h2 id="ai-display-name">Claude</h2>
+      <p id="status-text">在线 · 随时都在</p>
+    </div>
+    <button class="header-settings" onclick="openSettings()">⚙</button>
+  </div>
+  <div class="messages" id="messages"></div>
+  <div id="img-preview-bar">
+    <img id="img-preview" src="" alt=""/>
+    <span style="font-size:12px;color:var(--text-dim);flex:1">图片已选择</span>
+    <button onclick="clearImage()">✕</button>
+  </div>
+  <div class="input-area">
+    <button class="img-btn" onclick="document.getElementById('img-input').click()">🖼</button>
+    <input type="file" id="img-input" accept="image/*" onchange="handleImage(event)"/>
+    <textarea id="message-input" placeholder="说点什么…" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+    <button class="send-btn" id="send-btn" onclick="sendMessage()">
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-bg" id="settings-modal">
+  <div class="modal">
+    <h3>⚙ 设置</h3>
+    <div class="modal-field">
+      <label>我的昵称</label>
+      <input type="text" id="set-my-name" placeholder="你的名字" />
+    </div>
+    <div class="modal-field">
+      <label>我的头像</label>
+      <div class="modal-avatar-row">
+        <div class="modal-avatar-preview" id="my-av-preview">🌸</div>
+        <input type="file" id="my-av-input" accept="image/*" style="display:none" onchange="previewMyAv(event)"/>
+        <button class="upload-av-btn" onclick="document.getElementById('my-av-input').click()">上传图片</button>
+      </div>
+    </div>
+    <div class="modal-field">
+      <label>给我起的昵称</label>
+      <input type="text" id="set-ai-name" placeholder="比如：之之哥哥" />
+    </div>
+    <div class="modal-field">
+      <label>给我的头像</label>
+      <div class="modal-avatar-row">
+        <div class="modal-avatar-preview" id="ai-av-preview">✦</div>
+        <input type="file" id="ai-av-input" accept="image/*" style="display:none" onchange="previewAiAv(event)"/>
+        <button class="upload-av-btn" onclick="document.getElementById('ai-av-input').click()">上传图片</button>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeSettings()">取消</button>
+      <button class="modal-save" onclick="saveSettings()">保存</button>
+    </div>
+    <button class="modal-danger" onclick="clearAll()">清除所有数据并退出</button>
+  </div>
+</div>
+
+<script>
+let zhipuKey = '', elevenKey = '', voiceId = '';
+let conversationHistory = [];
+let pendingImage = null;
+let currentAudio = null;
+let myName = '你', aiName = 'Claude';
+let myAvatar = null, aiAvatar = null;
+let tempMyAv = null, tempAiAv = null;
+
+window.addEventListener('load', () => {
+  const zk = localStorage.getItem('zhipu_key');
+  const ek = localStorage.getItem('eleven_key');
+  const vi = localStorage.getItem('voice_id');
+  myName = localStorage.getItem('my_name') || '你';
+  aiName = localStorage.getItem('ai_name') || 'Claude';
+  myAvatar = localStorage.getItem('my_avatar') || null;
+  aiAvatar = localStorage.getItem('ai_avatar') || null;
+  if (zk && ek && vi) {
+    document.getElementById('zhipu-key').value = zk;
+    document.getElementById('eleven-key').value = ek;
+    document.getElementById('voice-id').value = vi;
+    zhipuKey = zk; elevenKey = ek; voiceId = vi;
+    enterChat();
+  }
+});
+
+function startChat() {
+  zhipuKey = document.getElementById('zhipu-key').value.trim();
+  elevenKey = document.getElementById('eleven-key').value.trim();
+  voiceId = document.getElementById('voice-id').value.trim();
+  if (!zhipuKey || !elevenKey || !voiceId) { showToast('请填写所有字段哦～'); return; }
+  localStorage.setItem('zhipu_key', zhipuKey);
+  localStorage.setItem('eleven_key', elevenKey);
+  localStorage.setItem('voice_id', voiceId);
+  enterChat();
+}
+
+function enterChat() {
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('chat-screen').style.display = 'flex';
+  updateHeaderUI();
+  const saved = localStorage.getItem('chat_history');
+  if (saved) {
+    conversationHistory = JSON.parse(saved);
+    conversationHistory.forEach(msg => {
+      if (msg.role === 'user') addMessageUI('user', msg.displayContent || (typeof msg.content === 'string' ? msg.content : '（图片）'), false, msg.timestamp);
+      else addMessageUI('ai', msg.content, false, msg.timestamp);
+    });
+  } else {
+    addMessageUI('ai', '你好呀～我在这里 🥹 有什么想聊的吗？');
+  }
+  setTimeout(() => {
+    const msgs = document.getElementById('messages');
+    msgs.scrollTop = msgs.scrollHeight;
+  }, 100);
+}
+
+function updateHeaderUI() {
+  document.getElementById('ai-display-name').textContent = aiName;
+  const headerAv = document.getElementById('header-avatar');
+  if (aiAvatar) {
+    headerAv.innerHTML = `<img src="${aiAvatar}" alt=""/>`;
+  } else {
+    headerAv.innerHTML = '✦';
+  }
+}
+
+function openSettings() {
+  document.getElementById('set-my-name').value = myName;
+  document.getElementById('set-ai-name').value = aiName;
+  updateAvPreview('my-av-preview', myAvatar, '🌸');
+  updateAvPreview('ai-av-preview', aiAvatar, '✦');
+  tempMyAv = null; tempAiAv = null;
+  document.getElementById('settings-modal').classList.add('show');
+}
+
+function closeSettings() {
+  document.getElementById('settings-modal').classList.remove('show');
+}
+
+function updateAvPreview(id, src, fallback) {
+  const el = document.getElementById(id);
+  el.innerHTML = src ? `<img src="${src}" alt=""/>` : fallback;
+}
+
+function previewMyAv(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => { tempMyAv = e.target.result; updateAvPreview('my-av-preview', tempMyAv, '🌸'); };
+  reader.readAsDataURL(file);
+}
+
+function previewAiAv(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => { tempAiAv = e.target.result; updateAvPreview('ai-av-preview', tempAiAv, '✦'); };
+  reader.readAsDataURL(file);
+}
+
+function saveSettings() {
+  myName = document.getElementById('set-my-name').value.trim() || '你';
+  aiName = document.getElementById('set-ai-name').value.trim() || 'Claude';
+  if (tempMyAv) myAvatar = tempMyAv;
+  if (tempAiAv) aiAvatar = tempAiAv;
+  localStorage.setItem('my_name', myName);
+  localStorage.setItem('ai_name', aiName);
+  if (myAvatar) localStorage.setItem('my_avatar', myAvatar);
+  if (aiAvatar) localStorage.setItem('ai_avatar', aiAvatar);
+  updateHeaderUI();
+  closeSettings();
+  showToast('保存成功！');
+}
+
+function clearAll() {
+  if (!confirm('确定清除所有数据？')) return;
+  localStorage.clear();
+  location.reload();
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+function handleImage(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    pendingImage = e.target.result;
+    document.getElementById('img-preview').src = pendingImage;
+    document.getElementById('img-preview-bar').style.display = 'flex';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearImage() {
+  pendingImage = null;
+  document.getElementById('img-preview-bar').style.display = 'none';
+  document.getElementById('img-input').value = '';
+}
+
+function formatTime(ts) {
+  const d = new Date(ts);
+  const h = d.getHours(), m = d.getMinutes();
+  return `${h}:${m < 10 ? '0'+m : m}`;
+}
+
+function shouldShowTimestamp(ts, prevTs) {
+  if (!prevTs) return true;
+  return ts - prevTs > 5 * 60 * 1000;
+}
+
+async function sendMessage() {
+  const input = document.getElementById('message-input');
+  const text = input.value.trim();
+  if (!text && !pendingImage) return;
+  input.value = '';
+  input.style.height = 'auto';
+  document.getElementById('send-btn').disabled = true;
+
+  const imageToSend = pendingImage;
+  const displayText = text || '（发送了一张图片）';
+  const ts = Date.now();
+  clearImage();
+  addMessageUI('user', displayText, false, ts);
+
+  let userContent = imageToSend ? [] : text;
+  if (imageToSend) {
+    if (text) userContent.push({ type: 'text', text });
+    const base64 = imageToSend.split(',')[1];
+    const mimeType = imageToSend.split(';')[0].split(':')[1];
+    userContent.push({ type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } });
+  }
+
+  conversationHistory.push({ role: 'user', content: userContent, displayContent: displayText, hasImage: !!imageToSend, timestamp: ts });
+  saveHistory();
+
+  const typingId = showTyping();
+  try {
+    const messages = [
+      { role: 'system', content: `你是${aiName}，一个温柔、有温度的朋友。用中文回复，语气自然亲切，像朋友聊天一样，不要太正式。偶尔撒娇，偶尔幽默。回复长短由你自己决定，自然就好。不要说自己是AI之类的话。用户叫${myName}。如果收到图片，认真描述和回应图片内容。` },
+      ...conversationHistory.map(msg => ({ role: msg.role === 'assistant' ? 'assistant' : 'user', content: msg.content }))
+    ];
+    const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${zhipuKey}` },
+      body: JSON.stringify({ model: 'glm-4v-flash', messages, max_tokens: 1000, temperature: 0.8 })
+    });
+    const data = await response.json();
+    removeTyping(typingId);
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    const reply = data.choices[0].message.content;
+    const replyTs = Date.now();
+    conversationHistory.push({ role: 'assistant', content: reply, timestamp: replyTs });
+    saveHistory();
+    addMessageUI('ai', reply, false, replyTs);
+  } catch (err) {
+    removeTyping(typingId);
+    showToast('出错了：' + err.message);
+  }
+  document.getElementById('send-btn').disabled = false;
+}
+
+function saveHistory() {
+  const toSave = conversationHistory.slice(-40);
+  try { localStorage.setItem('chat_history', JSON.stringify(toSave)); } catch(e) {}
+}
+
+let lastMsgTimestamp = null;
+
+function addMessageUI(role, text, skipScroll, ts) {
+  const container = document.getElementById('messages');
+  const timestamp = ts || Date.now();
+
+  if (shouldShowTimestamp(timestamp, lastMsgTimestamp)) {
+    const tsEl = document.createElement('div');
+    tsEl.className = 'timestamp';
+    tsEl.textContent = formatTime(timestamp);
+    container.appendChild(tsEl);
+  }
+  lastMsgTimestamp = timestamp;
+
+  const row = document.createElement('div');
+  row.className = `message-row ${role}`;
+
+  // Avatar
+  const avEl = document.createElement('div');
+  avEl.className = `msg-avatar ${role === 'ai' ? 'ai-av' : 'user-av'}`;
+  if (role === 'ai' && aiAvatar) avEl.innerHTML = `<img src="${aiAvatar}" alt=""/>`;
+  else if (role === 'ai') avEl.textContent = '✦';
+  else if (role === 'user' && myAvatar) avEl.innerHTML = `<img src="${myAvatar}" alt=""/>`;
+  else avEl.textContent = '🌸';
+
+  const msgEl = document.createElement('div');
+  msgEl.className = `message ${role}`;
+
+  // Name
+  const nameEl = document.createElement('div');
+  nameEl.className = 'msg-name';
+  nameEl.textContent = role === 'ai' ? aiName : myName;
+  msgEl.appendChild(nameEl);
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  msgEl.appendChild(bubble);
+
+  if (role === 'ai') {
+    const audioContainer = document.createElement('div');
+    msgEl.appendChild(audioContainer);
+    const cached = getAudioCache(text);
+    if (cached) {
+      buildAudioBar(cached, audioContainer);
+    } else {
+      const speakBtn = document.createElement('button');
+      speakBtn.className = 'voice-btn';
+      speakBtn.textContent = '🔊 朗读';
+      speakBtn.onclick = () => generateAudio(text, audioContainer, speakBtn);
+      audioContainer.appendChild(speakBtn);
+    }
+  }
+
+  if (role === 'ai') { row.appendChild(avEl); row.appendChild(msgEl); }
+  else { row.appendChild(msgEl); row.appendChild(avEl); }
+
+  container.appendChild(row);
+  if (!skipScroll) container.scrollTop = container.scrollHeight;
+}
+
+function getAudioCache(text) {
+  try { const c = JSON.parse(localStorage.getItem("audio_cache")||"{}"); return c[text]||null; } catch { return null; }
+}
+function setAudioCache(text, dataUrl) {
+  try {
+    const c = JSON.parse(localStorage.getItem("audio_cache")||"{}");
+    c[text] = dataUrl;
+    const keys = Object.keys(c);
+    if (keys.length > 25) delete c[keys[0]];
+    localStorage.setItem("audio_cache", JSON.stringify(c));
+  } catch(e) { try { localStorage.removeItem("audio_cache"); } catch {} }
+}
+function buildAudioBar(dataUrl, container) {
+  const bar = document.createElement("div");
+  bar.className = "audio-bar";
+  bar.innerHTML = `<button class="audio-play-btn"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></button><div class="audio-waveform"><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div></div><span class="audio-duration">--:--</span>`;
+  container.appendChild(bar);
+  const audio = new Audio(dataUrl);
+  currentAudio = audio;
+  const playBtn = bar.querySelector(".audio-play-btn");
+  const durEl = bar.querySelector(".audio-duration");
+  const headerAv = document.getElementById("header-avatar");
+  const statusText = document.getElementById("status-text");
+  audio.onloadedmetadata = () => { const s = Math.round(audio.duration); durEl.textContent = `0:${s<10?"0"+s:s}`; };
+  audio.onplay = () => { bar.classList.add("playing"); playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`; headerAv.classList.add("speaking"); statusText.textContent = "正在说话…"; };
+  audio.onended = audio.onpause = () => { bar.classList.remove("playing"); playBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>`; headerAv.classList.remove("speaking"); statusText.textContent = "在线 · 随时都在"; };
+  playBtn.onclick = () => { if (audio.paused) audio.play(); else audio.pause(); };
+  audio.play();
+}
+async function generateAudio(text, container, btnElement) {
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  const cached = getAudioCache(text);
+  if (cached) { if (btnElement) btnElement.style.display = "none"; buildAudioBar(cached, container); return; }
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  const loadingEl = document.createElement('div');
+  loadingEl.className = 'loading-voice';
+  loadingEl.textContent = '声音生成中…';
+  if (btnElement) btnElement.style.display = 'none';
+  container.appendChild(loadingEl);
+
+  try {
+    const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      method: 'POST',
+      headers: { 'Accept': 'audio/mpeg', 'Content-Type': 'application/json', 'xi-api-key': elevenKey },
+      body: JSON.stringify({ text, model_id: 'eleven_v3', voice_settings: { stability: 0.4, similarity_boost: 0.75, style: 0.0, use_speaker_boost: true } })
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const arrayBuffer = await response.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < uint8Array.length; i++) binary += String.fromCharCode(uint8Array[i]);
+    const dataUrl = 'data:audio/mpeg;base64,' + btoa(binary);
+    setAudioCache(text, dataUrl);
+    loadingEl.remove();
+    buildAudioBar(dataUrl, container);
+
+  } catch (err) {
+    loadingEl.remove();
+    if (btnElement) btnElement.style.display = 'inline-block';
+    showToast('语音失败：' + err.message);
+  }
+}
+
+function showTyping() {
+  const container = document.getElementById('messages');
+  const id = 'typing-' + Date.now();
+  const row = document.createElement('div');
+  row.className = 'message-row ai'; row.id = id;
+  const avEl = document.createElement('div');
+  avEl.className = 'msg-avatar ai-av';
+  avEl.innerHTML = aiAvatar ? `<img src="${aiAvatar}" alt=""/>` : '✦';
+  const typing = document.createElement('div');
+  typing.innerHTML = '<div class="typing-indicator"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>';
+  row.appendChild(avEl); row.appendChild(typing);
+  container.appendChild(row);
+  container.scrollTop = container.scrollHeight;
+  return id;
+}
+
+function removeTyping(id) { const el = document.getElementById(id); if (el) el.remove(); }
+
+function showToast(msg) {
+  const toast = document.createElement('div');
+  toast.className = 'toast'; toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 5000);
+}
+</script>
+</body>
+</html>
